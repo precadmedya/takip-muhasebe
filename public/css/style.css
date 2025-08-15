@@ -1,0 +1,13 @@
+/* Custom styles */
+body {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+form {
+    max-width: 400px;
+    margin: 0 auto;
+}
