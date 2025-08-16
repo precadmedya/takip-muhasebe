@@ -1,0 +1,14 @@
+Options -Indexes
+DirectoryIndex index.php
+
+# Block sensitive files
+<FilesMatch "(\.env(\.example)?|schema.*\.sql|seed.*\.sql|config\.php|composer\.(json|lock))">
+  Require all denied
+</FilesMatch>
+
+# Force HTTPS (comment out if site does not use SSL)
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
