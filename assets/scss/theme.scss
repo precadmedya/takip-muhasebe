@@ -1,0 +1,9 @@
+@import 'variables';
+body {
+  background-color: $body-bg;
+  color: $body-color;
+  font-family: $font-family-base;
+}
+.navbar-brand img { height: 40px; }
+.card { box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); border-radius: .5rem; }
+.table thead { background-color: $primary; color: #fff; }
