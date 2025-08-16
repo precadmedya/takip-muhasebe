@@ -1,0 +1,126 @@
+-- Canonical schema base
+CREATE TABLE IF NOT EXISTS firms (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  slug VARCHAR(150) NOT NULL UNIQUE,
+  email VARCHAR(150) NULL,
+  phone VARCHAR(50) NULL,
+  address TEXT NULL,
+  status ENUM('active','suspended','cancelled') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  firm_id INT UNSIGNED NULL,
+  role ENUM('yonetici','firma') DEFAULT 'firma',
+  full_name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  is_active TINYINT(1) DEFAULT 1,
+  failed_attempts TINYINT(1) DEFAULT 0,
+  last_login_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_users_firm FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS settings (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  firm_id INT UNSIGNED NOT NULL UNIQUE,
+  brand_name VARCHAR(150) NULL,
+  logo_path VARCHAR(255) NULL,
+  theme_primary_color VARCHAR(20) DEFAULT '#1d4ed8',
+  currency_method ENUM('transaction_date','latest') DEFAULT 'latest',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_settings_firm FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS services (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  service_name VARCHAR(150) NOT NULL UNIQUE,
+  description TEXT NULL,
+  price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  period ENUM('ay','yil') NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS firm_subscriptions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  firm_id INT UNSIGNED NOT NULL,
+  service_id INT UNSIGNED NOT NULL,
+  plan ENUM('monthly','yearly') NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status ENUM('active','expired','suspended') DEFAULT 'active',
+  auto_renew TINYINT(1) DEFAULT 0,
+  grace_days INT UNSIGNED DEFAULT 7,
+  last_payment_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_fs_firm_end (firm_id,end_date),
+  CONSTRAINT fk_fs_firm FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE CASCADE,
+  CONSTRAINT fk_fs_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  firm_id INT UNSIGNED NULL,
+  user_id INT UNSIGNED NULL,
+  entity_type VARCHAR(64) NOT NULL,
+  entity_id BIGINT UNSIGNED NULL,
+  action ENUM('create','update','delete','login','logout') NOT NULL,
+  old_values JSON NULL,
+  new_values JSON NULL,
+  ip VARCHAR(45) NULL,
+  user_agent VARCHAR(255) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_firm (firm_id),
+  CONSTRAINT fk_audit_firm FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE SET NULL,
+  CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS customers (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  firm_id INT UNSIGNED NOT NULL,
+  full_name VARCHAR(120) NOT NULL,
+  email VARCHAR(150) NULL,
+  phone VARCHAR(50) NULL,
+  company VARCHAR(150) NULL,
+  tax_no VARCHAR(50) NULL,
+  address TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_cust_firm (firm_id),
+  CONSTRAINT fk_cust_firm FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS products (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  firm_id INT UNSIGNED NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  sku VARCHAR(80) NOT NULL,
+  default_currency ENUM('TRY','USD','EUR','GBP') NOT NULL DEFAULT 'TRY',
+  base_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  vat_rate DECIMAL(5,2) NOT NULL DEFAULT 20.00,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_product_sku_per_firm (firm_id, sku),
+  INDEX idx_prod_firm (firm_id),
+  CONSTRAINT fk_prod_firm FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS exchange_rates (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  base_currency ENUM('TRY') DEFAULT 'TRY',
+  usd DECIMAL(12,6) NULL,
+  eur DECIMAL(12,6) NULL,
+  gbp DECIMAL(12,6) NULL,
+  fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO services (service_name, description, price, period)
+VALUES ('Temel Hizmet','Varsayılan servis',0.00,'ay')
+ON DUPLICATE KEY UPDATE description=VALUES(description), price=VALUES(price), period=VALUES(period);
